@@ -39,6 +39,171 @@
     max-width: 560px;
   }
 
+  .frame.wide {
+    max-width: 960px;
+  }
+
+  .ranks-panel {
+    overflow-x: auto;
+  }
+
+  .ranks-panel h2 {
+    margin: 0 0 4px 0;
+    font-size: 1.05rem;
+    color: var(--gold);
+    font-family: Georgia, 'Times New Roman', serif;
+  }
+
+  .ranks-note {
+    font-size: 0.72rem;
+    color: #8f8067;
+    margin: 0 0 14px 0;
+    line-height: 1.4;
+  }
+
+  table.ranks {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 780px;
+    font-size: 0.78rem;
+  }
+
+  table.ranks th, table.ranks td {
+    padding: 6px 8px;
+    text-align: center;
+    white-space: nowrap;
+    border-bottom: 1px solid #3a3226;
+  }
+
+  table.ranks th {
+    color: var(--gold);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    background: var(--panel-dark);
+  }
+
+  table.ranks td:first-child, table.ranks th:first-child {
+    text-align: left;
+    color: var(--white);
+    font-weight: bold;
+  }
+
+  table.ranks td.met {
+    background: rgba(0, 255, 90, 0.16);
+    color: #baffc9;
+  }
+
+  table.ranks td.unmet {
+    color: #a99a7e;
+  }
+
+  table.ranks td.untracked {
+    color: #cbb894;
+    font-style: normal;
+    position: relative;
+  }
+
+  table.ranks td.untracked::after {
+    content: "?";
+    display: inline-block;
+    margin-left: 5px;
+    font-size: 0.65em;
+    color: var(--bg);
+    background: #8a7a5e;
+    width: 12px;
+    height: 12px;
+    line-height: 12px;
+    border-radius: 50%;
+    text-align: center;
+    vertical-align: super;
+  }
+
+  table.ranks tr.qualifying td {
+    background: rgba(255, 176, 0, 0.22);
+  }
+
+  table.ranks tr.qualifying td.met {
+    background: rgba(255, 176, 0, 0.38);
+  }
+
+  table.ranks tr.qualifying td:first-child::after {
+    content: " \2605";
+    color: var(--gold);
+  }
+
+  /* --- Mobile card view --- */
+  .ranks-desktop { display: block; }
+  .ranks-mobile { display: none; }
+
+  .mobile-rank-title {
+    text-align: center;
+    margin-bottom: 4px;
+  }
+
+  .mobile-rank-title .star { color: var(--gold); }
+
+  .mobile-rank-name {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1.4rem;
+    color: var(--gold);
+    font-weight: 700;
+  }
+
+  .mobile-rank-sub {
+    text-align: center;
+    font-size: 0.72rem;
+    color: #a99a7e;
+    margin-bottom: 16px;
+  }
+
+  .mobile-req-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    background: var(--panel-dark);
+    border-left: 3px solid #5a4d3c;
+  }
+
+  .mobile-req-row.met { border-left-color: #3ecf5e; }
+  .mobile-req-row.unmet { border-left-color: #a05c48; }
+  .mobile-req-row.untracked { border-left-color: #8a7a5e; }
+
+  .mobile-req-label {
+    font-size: 0.82rem;
+    color: var(--parchment);
+  }
+
+  .mobile-req-values {
+    font-size: 0.82rem;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  .mobile-req-values .actual { color: var(--white); font-weight: bold; }
+  .mobile-req-values .sep { color: #6f6350; margin: 0 3px; }
+  .mobile-req-values .req { color: #a99a7e; }
+
+  .mobile-req-row.met .mobile-req-values .actual { color: #baffc9; }
+  .mobile-req-row.untracked .mobile-req-values { color: #cbb894; font-size: 0.75rem; }
+
+  .mobile-next-heading {
+    margin: 18px 0 8px 0;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #a99a7e;
+    border-top: 1px solid #3a3226;
+    padding-top: 14px;
+  }
+
+  @media (max-width: 680px) {
+    .ranks-desktop { display: none; }
+    .ranks-mobile { display: block; }
+  }
+
   .eyebrow {
     text-transform: uppercase;
     letter-spacing: 0.2em;
@@ -194,7 +359,7 @@
 </style>
 </head>
 <body>
-<div class="frame">
+<div class="frame" id="frame">
   <div class="eyebrow">Wise Old Man &middot; OSRS</div>
   <h1>Raid KC Lookup</h1>
   <p class="subtitle">Chambers, Theatre, and Tombs kill counts, at a glance.</p>
@@ -221,6 +386,33 @@
     <div class="total-row"><span class="kc-label">Total Raid KC</span><span class="kc-value" id="total">0</span></div>
   </div>
 
+  <div class="panel ranks-panel results" id="ranksPanel">
+    <h2>Clan Rank Requirements</h2>
+    <p class="ranks-note" id="ranksNote"></p>
+
+    <div class="ranks-desktop">
+    <table class="ranks" id="ranksTable">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Total Lvl</th>
+          <th>Combat</th>
+          <th>EHP</th>
+          <th>EHB</th>
+          <th>Raid KC</th>
+          <th>Coll. Log</th>
+          <th>CA's</th>
+          <th>Events</th>
+          <th>Splits</th>
+        </tr>
+      </thead>
+      <tbody id="ranksBody"></tbody>
+    </table>
+    </div>
+
+    <div class="ranks-mobile" id="ranksMobile"></div>
+  </div>
+
   <footer>Data from wiseoldman.net &middot; not affiliated with Jagex</footer>
 </div>
 
@@ -230,6 +422,262 @@
   const btn = document.getElementById('searchBtn');
   const status = document.getElementById('status');
   const results = document.getElementById('results');
+  const frame = document.getElementById('frame');
+  const ranksPanel = document.getElementById('ranksPanel');
+  const ranksBody = document.getElementById('ranksBody');
+  const ranksNote = document.getElementById('ranksNote');
+  const ranksMobile = document.getElementById('ranksMobile');
+
+  // Requirement thresholds transcribed from the clan's rank chart.
+  // null = no requirement (auto-met). untracked: true = not derivable from
+  // the Wise Old Man API (combat achievement tier, events attended, gp splits).
+  const RANKS = [
+    { name: 'Dogsbody',   totalLevel: 1800, combatLevel: 110, ehp: null, ehb: null, raidKc: null, collectionLog: null, cas: null, events: null, splits: null },
+    { name: 'Adventurer', totalLevel: 1800, combatLevel: 110, ehp: null, ehb: null, raidKc: null, collectionLog: null, cas: null, events: null, splits: null },
+    { name: 'Recruit',    totalLevel: 1800, combatLevel: 110, ehp: null, ehb: null, raidKc: null, collectionLog: null, cas: null, events: null, splits: null },
+    { name: 'Corporal',   totalLevel: 1800, combatLevel: 110, ehp: null, ehb: null, raidKc: null, collectionLog: null, cas: null, events: null, splits: null },
+    { name: 'Sergeant',   totalLevel: 1800, combatLevel: 110, ehp: null, ehb: null, raidKc: null, collectionLog: null, cas: null, events: null, splits: null },
+    { name: 'Cadet',      totalLevel: 1800, combatLevel: 110, ehp: 100,  ehb: 25,   raidKc: 15,   collectionLog: 100, cas: 'Medium', events: 2, splits: '10M+' },
+    { name: 'Lieutenant', totalLevel: 1900, combatLevel: 115, ehp: 200,  ehb: 75,   raidKc: 25,   collectionLog: 150, cas: 'Medium', events: 2, splits: '25M+' },
+    { name: 'Proselyte',  totalLevel: 1950, combatLevel: 115, ehp: 250,  ehb: 125,  raidKc: 50,   collectionLog: 200, cas: 'Medium', events: 3, splits: '50M+' },
+    { name: 'Captain',    totalLevel: 2000, combatLevel: 115, ehp: 300,  ehb: 175,  raidKc: 75,   collectionLog: 250, cas: 'Hard',   events: 3, splits: '100M+' },
+    { name: 'Major',      totalLevel: 2050, combatLevel: 120, ehp: 350,  ehb: 225,  raidKc: 100,  collectionLog: 300, cas: 'Hard',   events: 4, splits: '150M+' },
+    { name: 'General',    totalLevel: 2100, combatLevel: 120, ehp: 400,  ehb: 300,  raidKc: 125,  collectionLog: 350, cas: 'Hard',   events: 4, splits: '250M+' },
+    { name: 'Master',     totalLevel: 2150, combatLevel: 120, ehp: 450,  ehb: 375,  raidKc: 175,  collectionLog: 400, cas: 'Elite',  events: 5, splits: '350M+' },
+    { name: 'Officer',    totalLevel: 2200, combatLevel: 125, ehp: 550,  ehb: 450,  raidKc: 275,  collectionLog: 450, cas: 'Elite',  events: 5, splits: '500M+' },
+    { name: 'Commander',  totalLevel: 2250, combatLevel: 125, ehp: 650,  ehb: 600,  raidKc: 400,  collectionLog: 500, cas: 'Elite',  events: 6, splits: '600M+' },
+    { name: 'Colonel',    totalLevel: 2300, combatLevel: 125, ehp: 750,  ehb: 800,  raidKc: 550,  collectionLog: 550, cas: 'Elite',  events: 6, splits: '700M+' },
+    { name: 'Brigadier',  totalLevel: 2325, combatLevel: 126, ehp: 850,  ehb: 1000, raidKc: 750,  collectionLog: 650, cas: 'Master', events: 7, splits: '850M+' },
+    { name: 'Admiral',    totalLevel: 2350, combatLevel: 126, ehp: 1000, ehb: 1200, raidKc: 1000, collectionLog: 750, cas: 'Master', events: 7, splits: '1B+' },
+  ];
+
+  // Columns checkable purely from WOM stats. Anything else (event
+  // attendance, gp splits) can't be verified here. Combat Achievement tier
+  // is fetched separately from RuneProfile (falls back to N/A if unavailable).
+  const NUMERIC_COLS = ['totalLevel', 'combatLevel', 'ehp', 'ehb', 'raidKc', 'collectionLog'];
+  const UNTRACKED_COLS = ['events', 'splits'];
+  const TIER_ORDER = { Easy: 1, Medium: 2, Hard: 3, Elite: 4, Master: 5, Grandmaster: 6 };
+
+  function meetsTier(playerTier, reqTier) {
+    if (reqTier === null || reqTier === undefined) return true;
+    if (!playerTier || !(playerTier in TIER_ORDER)) return false;
+    return TIER_ORDER[playerTier] >= TIER_ORDER[reqTier];
+  }
+
+  async function fetchCaTier(username) {
+    try {
+      const res = await fetch(
+        'https://api.runeprofile.com/v1/accounts/' + encodeURIComponent(username) + '/combat-achievements/tasks'
+      );
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data && typeof data.tierReached === 'string' ? data.tierReached : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function meetsNumeric(playerVal, req) {
+    if (req === null || req === undefined) return true;
+    return playerVal >= req;
+  }
+
+  function renderRanks(stats) {
+    ranksBody.innerHTML = '';
+
+    // Highest rank where every numeric-checkable requirement is satisfied,
+    // plus CA tier when we were able to fetch one.
+    let qualifyingIndex = -1;
+    for (let i = 0; i < RANKS.length; i++) {
+      const r = RANKS[i];
+      const numericMet = NUMERIC_COLS.every(col => meetsNumeric(stats[col], r[col]));
+      const caMet = meetsTier(stats.cas, r.cas);
+      if (numericMet && caMet) qualifyingIndex = i;
+    }
+
+    RANKS.forEach((r, i) => {
+      const tr = document.createElement('tr');
+      if (i === qualifyingIndex) tr.classList.add('qualifying');
+
+      const nameCell = document.createElement('td');
+      nameCell.textContent = r.name;
+      tr.appendChild(nameCell);
+
+      NUMERIC_COLS.forEach(col => {
+        const td = document.createElement('td');
+        const req = r[col];
+        if (req === null || req === undefined) {
+          td.textContent = 'N/A';
+        } else {
+          td.textContent = col === 'ehp' || col === 'ehb' ? req : req.toLocaleString();
+          if (meetsNumeric(stats[col], req)) td.classList.add('met');
+          else td.classList.add('unmet');
+        }
+        tr.appendChild(td);
+      });
+
+      const caTd = document.createElement('td');
+      if (r.cas === null || r.cas === undefined) {
+        caTd.textContent = 'N/A';
+        caTd.classList.add('untracked');
+      } else if (stats.cas) {
+        caTd.textContent = r.cas;
+        caTd.classList.add(meetsTier(stats.cas, r.cas) ? 'met' : 'unmet');
+      } else {
+        caTd.textContent = r.cas;
+        caTd.classList.add('untracked');
+      }
+      tr.appendChild(caTd);
+
+      UNTRACKED_COLS.forEach(col => {
+        const td = document.createElement('td');
+        const val = r[col];
+        td.textContent = val === null || val === undefined ? 'N/A' : val;
+        td.classList.add('untracked');
+        tr.appendChild(td);
+      });
+
+      ranksBody.appendChild(tr);
+    });
+
+    if (qualifyingIndex >= 0) {
+      const caLine = stats.cas
+        ? 'Combat Achievement tier (' + stats.cas + ', via RuneProfile) is included in the check. '
+        : 'Combat Achievement tier could not be fetched (no RuneProfile data), so it\u2019s excluded from the check below \u2014 confirm manually. ';
+      ranksNote.innerHTML = 'Highlighted cells are requirements ' + stats.displayName + ' currently meets. ' +
+        'The gold row is the highest rank fully met on Total Level, Combat, EHP, EHB, Raid KC, Collection Log' +
+        (stats.cas ? ', and CA tier. ' : '. ') + caLine +
+        'Event attendance and gp splits (italic columns) aren\'t available from either API, so confirm those manually.';
+    } else {
+      ranksNote.textContent = 'No rank\u2019s checkable requirements are fully met yet.';
+    }
+
+    renderMobileCard(stats, qualifyingIndex);
+
+    ranksPanel.classList.add('visible');
+    frame.classList.add('wide');
+  }
+
+  const COL_LABELS = {
+    totalLevel: 'Total Level',
+    combatLevel: 'Combat Level',
+    ehp: 'EHP',
+    ehb: 'EHB',
+    raidKc: 'Raid KC',
+    collectionLog: 'Collection Log',
+  };
+
+  function formatActual(col, val) {
+    if (col === 'ehp' || col === 'ehb') return val.toFixed(1);
+    return val.toLocaleString();
+  }
+
+  function formatReq(col, val) {
+    if (col === 'ehp' || col === 'ehb') return val;
+    return val.toLocaleString();
+  }
+
+  function buildReqRow(label, actualText, reqText, state) {
+    const row = document.createElement('div');
+    row.className = 'mobile-req-row ' + state;
+
+    const labelEl = document.createElement('div');
+    labelEl.className = 'mobile-req-label';
+    labelEl.textContent = label;
+    row.appendChild(labelEl);
+
+    const valuesEl = document.createElement('div');
+    valuesEl.className = 'mobile-req-values';
+    if (state === 'untracked') {
+      valuesEl.textContent = reqText;
+    } else {
+      valuesEl.innerHTML = '<span class="actual">' + actualText + '</span>' +
+        '<span class="sep">/</span><span class="req">' + reqText + '</span>';
+    }
+    row.appendChild(valuesEl);
+
+    return row;
+  }
+
+  function renderMobileCard(stats, qualifyingIndex) {
+    ranksMobile.innerHTML = '';
+
+    if (qualifyingIndex < 0) {
+      const p = document.createElement('p');
+      p.className = 'mobile-rank-sub';
+      p.textContent = 'No rank\u2019s checkable requirements are fully met yet.';
+      ranksMobile.appendChild(p);
+      return;
+    }
+
+    const rank = RANKS[qualifyingIndex];
+
+    const titleWrap = document.createElement('div');
+    titleWrap.className = 'mobile-rank-title';
+    titleWrap.innerHTML = '<span class="star">\u2605</span> <span class="mobile-rank-name">' + rank.name + '</span>';
+    ranksMobile.appendChild(titleWrap);
+
+    const sub = document.createElement('p');
+    sub.className = 'mobile-rank-sub';
+    sub.textContent = 'Highest rank ' + stats.displayName + ' currently qualifies for';
+    ranksMobile.appendChild(sub);
+
+    NUMERIC_COLS.forEach(col => {
+      const req = rank[col];
+      if (req === null || req === undefined) return; // no requirement at this rank, skip
+      const met = meetsNumeric(stats[col], req);
+      ranksMobile.appendChild(
+        buildReqRow(COL_LABELS[col], formatActual(col, stats[col]), formatReq(col, req), met ? 'met' : 'unmet')
+      );
+    });
+
+    if (rank.cas !== null && rank.cas !== undefined) {
+      if (stats.cas) {
+        const met = meetsTier(stats.cas, rank.cas);
+        ranksMobile.appendChild(buildReqRow('CA Tier', stats.cas, rank.cas, met ? 'met' : 'unmet'));
+      } else {
+        ranksMobile.appendChild(buildReqRow('CA Tier', '', rank.cas + ' (unverified)', 'untracked'));
+      }
+    }
+
+    if (rank.events !== null && rank.events !== undefined) {
+      ranksMobile.appendChild(buildReqRow('Events', '', rank.events + ' (verify manually)', 'untracked'));
+    }
+    if (rank.splits !== null && rank.splits !== undefined) {
+      ranksMobile.appendChild(buildReqRow('Splits', '', rank.splits + ' (verify manually)', 'untracked'));
+    }
+
+    // Show what's needed for the next rank up, if any.
+    if (qualifyingIndex < RANKS.length - 1) {
+      const next = RANKS[qualifyingIndex + 1];
+      const heading = document.createElement('div');
+      heading.className = 'mobile-next-heading';
+      heading.textContent = 'Still needed for ' + next.name;
+      ranksMobile.appendChild(heading);
+
+      let anyGap = false;
+      NUMERIC_COLS.forEach(col => {
+        const req = next[col];
+        if (req === null || req === undefined) return;
+        if (!meetsNumeric(stats[col], req)) {
+          anyGap = true;
+          ranksMobile.appendChild(
+            buildReqRow(COL_LABELS[col], formatActual(col, stats[col]), formatReq(col, req), 'unmet')
+          );
+        }
+      });
+      if (next.cas !== null && next.cas !== undefined && stats.cas && !meetsTier(stats.cas, next.cas)) {
+        anyGap = true;
+        ranksMobile.appendChild(buildReqRow('CA Tier', stats.cas, next.cas, 'unmet'));
+      }
+      if (!anyGap) {
+        const p = document.createElement('p');
+        p.className = 'mobile-rank-sub';
+        p.textContent = 'All checkable stats already met \u2014 remaining requirements (CA/Events/Splits) need manual confirmation.';
+        ranksMobile.appendChild(p);
+      }
+    }
+  }
 
   const els = {
     playerName: document.getElementById('playerName'),
@@ -261,6 +709,8 @@
     }
 
     results.classList.remove('visible');
+    ranksPanel.classList.remove('visible');
+    frame.classList.remove('wide');
     setStatus('Fetching data\u2026', 'loading');
     btn.disabled = true;
 
@@ -279,9 +729,8 @@
       }
 
       const data = await res.json();
-      const bosses = data && data.latestSnapshot && data.latestSnapshot.data
-        ? data.latestSnapshot.data.bosses
-        : null;
+      const snapshotData = data && data.latestSnapshot ? data.latestSnapshot.data : null;
+      const bosses = snapshotData ? snapshotData.bosses : null;
 
       if (!bosses) {
         setStatus('No snapshot data for this player yet.', 'error');
@@ -310,6 +759,28 @@
       els.total.textContent = total;
 
       results.classList.add('visible');
+
+      const totalLevel = snapshotData.skills && snapshotData.skills.overall
+        ? snapshotData.skills.overall.level
+        : 0;
+      const collectionLog = snapshotData.activities && snapshotData.activities.collections_logged
+        ? snapshotData.activities.collections_logged.score
+        : 0;
+
+      setStatus('Checking Combat Achievements\u2026', 'loading');
+      const caTier = await fetchCaTier(username);
+
+      renderRanks({
+        displayName: data.displayName || username,
+        totalLevel: totalLevel,
+        combatLevel: data.combatLevel || 0,
+        ehp: typeof data.ehp === 'number' ? data.ehp : 0,
+        ehb: typeof data.ehb === 'number' ? data.ehb : 0,
+        raidKc: total,
+        collectionLog: collectionLog > 0 ? collectionLog : 0,
+        cas: caTier,
+      });
+
       setStatus('');
     } catch (err) {
       setStatus('Could not reach Wise Old Man. Check your connection and try again.', 'error');
