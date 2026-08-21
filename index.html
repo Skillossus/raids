@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raid KC Lookup</title>
+<style>
+  :root {
+    --panel-dark: #28221c;
+    --panel-mid: #494034;
+    --panel-light: #6b5d4a;
+    --bg: #1b1712;
+    --parchment: #d8c39a;
+    --gold: #ffb000;
+    --white: #ffffff;
+    --green: #00ff00;
+    --red: #ff6b4a;
+    font-size: 16px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(255,176,0,0.05), transparent 40%),
+      radial-gradient(circle at 80% 90%, rgba(255,176,0,0.04), transparent 40%);
+    font-family: 'Courier New', ui-monospace, Consolas, monospace;
+    color: var(--parchment);
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px;
+  }
+
+  .frame {
+    width: 100%;
+    max-width: 560px;
+  }
+
+  .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 0.7rem;
+    color: var(--light-gray, #9a8a6f);
+    margin-bottom: 6px;
+  }
+
+  h1 {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-weight: 700;
+    font-size: 1.9rem;
+    color: var(--gold);
+    text-shadow: 1px 1px 0 #000;
+    margin: 0 0 4px 0;
+    letter-spacing: 0.02em;
+  }
+
+  .subtitle {
+    margin: 0 0 24px 0;
+    font-size: 0.85rem;
+    color: #a99a7e;
+  }
+
+  .panel {
+    background: var(--panel-mid);
+    border: 3px solid var(--panel-dark);
+    box-shadow:
+      inset 2px 2px 0 var(--panel-light),
+      inset -2px -2px 0 var(--panel-dark),
+      0 6px 18px rgba(0,0,0,0.5);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .search-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  input[type="text"] {
+    flex: 1;
+    background: #100d0a;
+    border: 2px solid var(--panel-dark);
+    box-shadow: inset 1px 1px 0 #000, inset -1px -1px 0 #3a3226;
+    color: var(--white);
+    font-family: inherit;
+    font-size: 1rem;
+    padding: 10px 12px;
+  }
+
+  input[type="text"]:focus {
+    outline: 2px solid var(--gold);
+    outline-offset: 1px;
+  }
+
+  input[type="text"]::placeholder {
+    color: #6f6350;
+  }
+
+  button {
+    background: var(--panel-light);
+    border: 2px solid var(--panel-dark);
+    box-shadow: inset 1px 1px 0 rgba(255,255,255,0.25), inset -1px -1px 0 rgba(0,0,0,0.4);
+    color: var(--gold);
+    font-family: inherit;
+    font-weight: bold;
+    font-size: 0.95rem;
+    padding: 10px 18px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  button:hover:not(:disabled) { filter: brightness(1.15); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: 0.5; cursor: default; }
+
+  button:focus-visible, input:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+
+  .status {
+    margin-top: 14px;
+    font-size: 0.85rem;
+    min-height: 1.2em;
+  }
+
+  .status.error { color: var(--red); }
+  .status.loading { color: #a99a7e; }
+
+  .results {
+    display: none;
+  }
+
+  .results.visible { display: block; }
+
+  .player-name {
+    color: var(--white);
+    font-size: 1.1rem;
+    margin-bottom: 2px;
+  }
+
+  .player-meta {
+    color: #a99a7e;
+    font-size: 0.75rem;
+    margin-bottom: 16px;
+  }
+
+  .kc-line {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px dashed #5a4d3c;
+    font-size: 0.95rem;
+  }
+
+  .kc-line:last-of-type { border-bottom: none; }
+
+  .kc-label { color: var(--parchment); }
+
+  .kc-value {
+    font-variant-numeric: tabular-nums;
+    min-width: 4.5ch;
+    text-align: right;
+    color: var(--white);
+    font-weight: bold;
+  }
+
+  .kc-line.combined .kc-label { color: #c9b98f; }
+
+  .total-row {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 10px;
+    margin-top: 10px;
+    border-top: 2px solid var(--panel-dark);
+    font-size: 1.05rem;
+  }
+
+  .total-row .kc-label { color: var(--gold); font-weight: bold; }
+  .total-row .kc-value { color: var(--gold); font-weight: bold; min-width: 4.5ch; text-align: right; }
+
+  footer {
+    font-size: 0.7rem;
+    color: #6f6350;
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  footer a { color: #a99a7e; }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="eyebrow">Wise Old Man &middot; OSRS</div>
+  <h1>Raid KC Lookup</h1>
+  <p class="subtitle">Chambers, Theatre, and Tombs kill counts, at a glance.</p>
+
+  <div class="panel">
+    <div class="search-row">
+      <input type="text" id="username" placeholder="Enter RSN, e.g. Skillossus" autocomplete="off" />
+      <button id="searchBtn" type="button">Look up</button>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="panel results" id="results">
+    <div class="player-name" id="playerName"></div>
+    <div class="player-meta" id="playerMeta"></div>
+
+    <div class="kc-line"><span class="kc-label">Chambers of Xeric</span><span class="kc-value" id="cox">0</span></div>
+    <div class="kc-line"><span class="kc-label">&nbsp;&nbsp;Challenge Mode</span><span class="kc-value" id="coxCm">0</span></div>
+    <div class="kc-line"><span class="kc-label">Theatre of Blood</span><span class="kc-value" id="tob">0</span></div>
+    <div class="kc-line"><span class="kc-label">&nbsp;&nbsp;Hard Mode</span><span class="kc-value" id="tobHm">0</span></div>
+    <div class="kc-line"><span class="kc-label">Tombs of Amascut</span><span class="kc-value" id="toa">0</span></div>
+    <div class="kc-line"><span class="kc-label">&nbsp;&nbsp;Expert Mode</span><span class="kc-value" id="toaExp">0</span></div>
+
+    <div class="total-row"><span class="kc-label">Total Raid KC</span><span class="kc-value" id="total">0</span></div>
+  </div>
+
+  <footer>Data from wiseoldman.net &middot; not affiliated with Jagex</footer>
+</div>
+
+<script>
+(function () {
+  const input = document.getElementById('username');
+  const btn = document.getElementById('searchBtn');
+  const status = document.getElementById('status');
+  const results = document.getElementById('results');
+
+  const els = {
+    playerName: document.getElementById('playerName'),
+    playerMeta: document.getElementById('playerMeta'),
+    cox: document.getElementById('cox'),
+    coxCm: document.getElementById('coxCm'),
+    tob: document.getElementById('tob'),
+    tobHm: document.getElementById('tobHm'),
+    toa: document.getElementById('toa'),
+    toaExp: document.getElementById('toaExp'),
+    total: document.getElementById('total'),
+  };
+
+  function setStatus(text, kind) {
+    status.textContent = text || '';
+    status.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function kc(bosses, key) {
+    const val = bosses && bosses[key] ? bosses[key].kills : 0;
+    return typeof val === 'number' && val > 0 ? val : 0;
+  }
+
+  async function lookup() {
+    const username = input.value.trim();
+    if (!username) {
+      setStatus('Enter a username first.', 'error');
+      return;
+    }
+
+    results.classList.remove('visible');
+    setStatus('Fetching data\u2026', 'loading');
+    btn.disabled = true;
+
+    try {
+      const res = await fetch(
+        'https://api.wiseoldman.net/v2/players/' + encodeURIComponent(username)
+      );
+
+      if (res.status === 404) {
+        setStatus('Player not found. Check the spelling and try again.', 'error');
+        return;
+      }
+      if (!res.ok) {
+        setStatus('Request failed (HTTP ' + res.status + '). Try again shortly.', 'error');
+        return;
+      }
+
+      const data = await res.json();
+      const bosses = data && data.latestSnapshot && data.latestSnapshot.data
+        ? data.latestSnapshot.data.bosses
+        : null;
+
+      if (!bosses) {
+        setStatus('No snapshot data for this player yet.', 'error');
+        return;
+      }
+
+      const cox = kc(bosses, 'chambers_of_xeric');
+      const coxCm = kc(bosses, 'chambers_of_xeric_challenge_mode');
+      const tob = kc(bosses, 'theatre_of_blood');
+      const tobHm = kc(bosses, 'theatre_of_blood_hard_mode');
+      const toa = kc(bosses, 'tombs_of_amascut');
+      const toaExp = kc(bosses, 'tombs_of_amascut_expert');
+      const total = cox + coxCm + tob + tobHm + toa + toaExp;
+
+      els.playerName.textContent = data.displayName || username;
+      els.playerMeta.textContent = 'Combat level ' + (data.combatLevel ?? '?') +
+        ' \u00b7 EHB ' + (typeof data.ehb === 'number' ? data.ehb.toFixed(1) : '?');
+
+      els.cox.textContent = cox;
+      els.coxCm.textContent = coxCm;
+      els.tob.textContent = tob;
+      els.tobHm.textContent = tobHm;
+      els.toa.textContent = toa;
+      els.toaExp.textContent = toaExp;
+      els.total.textContent = total;
+
+      results.classList.add('visible');
+      setStatus('');
+    } catch (err) {
+      setStatus('Could not reach Wise Old Man. Check your connection and try again.', 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  btn.addEventListener('click', lookup);
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') lookup();
+  });
+})();
+</script>
+</body>
+</html>
