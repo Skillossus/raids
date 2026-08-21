@@ -298,6 +298,7 @@
 
       els.playerName.textContent = data.displayName || username;
       els.playerMeta.textContent = 'Combat level ' + (data.combatLevel ?? '?') +
+        ' \u00b7 EHP ' + (typeof data.ehp === 'number' ? data.ehp.toFixed(1) : '?') +
         ' \u00b7 EHB ' + (typeof data.ehb === 'number' ? data.ehb.toFixed(1) : '?');
 
       els.cox.textContent = cox;
