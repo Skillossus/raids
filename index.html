@@ -827,6 +827,10 @@
       return;
     }
 
+    const url = new URL(window.location);
+    url.searchParams.set('rsn', username);
+    window.history.replaceState({}, '', url);
+
     results.classList.remove('visible');
     ranksPanel.classList.remove('visible');
     frame.classList.remove('wide');
@@ -912,6 +916,12 @@
   input.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') lookup();
   });
+
+  const initialRsn = new URLSearchParams(window.location.search).get('rsn');
+  if (initialRsn) {
+    input.value = initialRsn;
+    lookup();
+  }
 })();
 </script>
 </body>
