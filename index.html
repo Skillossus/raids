@@ -54,6 +54,15 @@
     font-family: Georgia, 'Times New Roman', serif;
   }
 
+  .detail-heading {
+    margin: 20px 0 10px 0;
+    font-size: 0.95rem;
+    color: var(--gold);
+    font-family: Georgia, 'Times New Roman', serif;
+    border-top: 1px solid #3a3226;
+    padding-top: 16px;
+  }
+
   .ranks-note {
     font-size: 0.72rem;
     color: #8f8067;
@@ -95,7 +104,8 @@
   }
 
   table.ranks td.unmet {
-    color: #a99a7e;
+    color: #ff8a70;
+    background: rgba(255, 90, 60, 0.10);
   }
 
   table.ranks td.untracked {
@@ -127,6 +137,10 @@
     background: rgba(255, 176, 0, 0.38);
   }
 
+  table.ranks tr.qualifying td.unmet {
+    color: #ff8a70;
+  }
+
   table.ranks tr.qualifying td:first-child::after {
     content: " \2605";
     color: var(--gold);
@@ -134,7 +148,25 @@
 
   /* --- Mobile card view --- */
   .ranks-desktop { display: block; }
-  .ranks-mobile { display: none; }
+  .ranks-mobile { display: block; }
+
+  table.ranks tbody tr {
+    cursor: pointer;
+  }
+
+  table.ranks tbody tr:hover td {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  table.ranks tbody tr.qualifying:hover td {
+    background: rgba(255, 176, 0, 0.28);
+  }
+
+  table.ranks tr.user-selected td:first-child::after {
+    content: " \2605 (selected)";
+    color: var(--gold);
+    font-size: 0.75em;
+  }
 
   .mobile-rank-title {
     text-align: center;
@@ -169,7 +201,7 @@
 
   .mobile-req-row.met { border-left-color: #3ecf5e; }
   .mobile-req-row.unmet { border-left-color: #a05c48; }
-  .mobile-req-row.untracked { border-left-color: #8a7a5e; }
+  .mobile-req-row.unverified { border-left-color: #8a7a5e; }
 
   .mobile-req-label {
     font-size: 0.82rem;
@@ -187,7 +219,8 @@
   .mobile-req-values .req { color: #a99a7e; }
 
   .mobile-req-row.met .mobile-req-values .actual { color: #baffc9; }
-  .mobile-req-row.untracked .mobile-req-values { color: #cbb894; font-size: 0.75rem; }
+  .mobile-req-row.unmet .mobile-req-values .actual { color: #ff8a70; }
+  .mobile-req-row.unverified .mobile-req-values { color: #cbb894; font-size: 0.75rem; }
 
   .mobile-next-heading {
     margin: 18px 0 8px 0;
@@ -199,9 +232,39 @@
     padding-top: 14px;
   }
 
+  .rank-picker {
+    display: none;
+  }
+
   @media (max-width: 680px) {
     .ranks-desktop { display: none; }
     .ranks-mobile { display: block; }
+    .rank-picker { display: block; margin-bottom: 4px; }
+  }
+
+  .rank-picker label {
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #a99a7e;
+    margin-bottom: 6px;
+  }
+
+  .rank-picker select {
+    width: 100%;
+    background: #100d0a;
+    border: 2px solid var(--panel-dark);
+    box-shadow: inset 1px 1px 0 #000, inset -1px -1px 0 #3a3226;
+    color: var(--white);
+    font-family: inherit;
+    font-size: 0.95rem;
+    padding: 10px 12px;
+  }
+
+  .rank-picker select:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
   }
 
   .eyebrow {
@@ -410,6 +473,12 @@
     </table>
     </div>
 
+    <div class="rank-picker">
+      <label for="rankSelect">View requirements for:</label>
+      <select id="rankSelect"></select>
+    </div>
+
+    <h3 class="detail-heading">Requirement Breakdown</h3>
     <div class="ranks-mobile" id="ranksMobile"></div>
   </div>
 
@@ -427,6 +496,7 @@
   const ranksBody = document.getElementById('ranksBody');
   const ranksNote = document.getElementById('ranksNote');
   const ranksMobile = document.getElementById('ranksMobile');
+  const rankSelect = document.getElementById('rankSelect');
 
   // Requirement thresholds transcribed from the clan's rank chart.
   // null = no requirement (auto-met). untracked: true = not derivable from
@@ -456,7 +526,9 @@
   // is fetched separately from RuneProfile (falls back to N/A if unavailable).
   const NUMERIC_COLS = ['totalLevel', 'combatLevel', 'ehp', 'ehb', 'raidKc', 'collectionLog'];
   const UNTRACKED_COLS = ['events', 'splits'];
+  const ALL_REQ_COLS = NUMERIC_COLS.concat(['cas', 'events', 'splits']);
   const TIER_ORDER = { Easy: 1, Medium: 2, Hard: 3, Elite: 4, Master: 5, Grandmaster: 6 };
+  const REQUIRED_TO_ADVANCE = 5;
 
   function meetsTier(playerTier, reqTier) {
     if (reqTier === null || reqTier === undefined) return true;
@@ -482,22 +554,57 @@
     return playerVal >= req;
   }
 
-  function renderRanks(stats) {
-    ranksBody.innerHTML = '';
+  // Breaks a single rank down into its specified (non-N/A) requirements,
+  // each tagged 'met' | 'unmet' | 'unverified' (events/splits, and CA tier
+  // when RuneProfile couldn't be reached, are never provably met from here).
+  function getRankBreakdown(stats, rank) {
+    return ALL_REQ_COLS
+      .filter(col => rank[col] !== null && rank[col] !== undefined)
+      .map(col => {
+        if (NUMERIC_COLS.includes(col)) {
+          return { col, req: rank[col], state: meetsNumeric(stats[col], rank[col]) ? 'met' : 'unmet' };
+        }
+        if (col === 'cas') {
+          if (!stats.cas) return { col, req: rank[col], state: 'unverified' };
+          return { col, req: rank[col], state: meetsTier(stats.cas, rank[col]) ? 'met' : 'unmet' };
+        }
+        // events / splits: never checkable from any API here
+        return { col, req: rank[col], state: 'unverified' };
+      });
+  }
 
-    // Highest rank where every numeric-checkable requirement is satisfied,
-    // plus CA tier when we were able to fetch one.
+  // A rank is (provisionally) reached once at least REQUIRED_TO_ADVANCE of its
+  // *specified* requirements are definitively met — or all of them, if it
+  // specifies fewer than that (e.g. the entry-level ranks). Requirements we
+  // can't check (events, splits, unverified CA) never count toward "met" here,
+  // so this is a conservative floor — a player could genuinely qualify higher
+  // once their own event/split totals are counted in.
+  function computeQualifyingIndex(stats) {
     let qualifyingIndex = -1;
     for (let i = 0; i < RANKS.length; i++) {
-      const r = RANKS[i];
-      const numericMet = NUMERIC_COLS.every(col => meetsNumeric(stats[col], r[col]));
-      const caMet = meetsTier(stats.cas, r.cas);
-      if (numericMet && caMet) qualifyingIndex = i;
+      const breakdown = getRankBreakdown(stats, RANKS[i]);
+      const metCount = breakdown.filter(b => b.state === 'met').length;
+      const neededHere = Math.min(REQUIRED_TO_ADVANCE, breakdown.length);
+      if (metCount >= neededHere) qualifyingIndex = i;
     }
+    return qualifyingIndex;
+  }
+
+  let lastStats = null;
+  let overrideIndex = null;
+
+  function renderRanks(stats) {
+    lastStats = stats;
+    overrideIndex = null;
+    ranksBody.innerHTML = '';
 
     RANKS.forEach((r, i) => {
       const tr = document.createElement('tr');
-      if (i === qualifyingIndex) tr.classList.add('qualifying');
+      tr.dataset.rankIndex = i;
+      tr.addEventListener('click', () => {
+        overrideIndex = overrideIndex === i ? null : i;
+        refreshActive();
+      });
 
       const nameCell = document.createElement('td');
       nameCell.textContent = r.name;
@@ -540,22 +647,59 @@
       ranksBody.appendChild(tr);
     });
 
-    if (qualifyingIndex >= 0) {
-      const caLine = stats.cas
-        ? 'Combat Achievement tier (' + stats.cas + ', via RuneProfile) is included in the check. '
-        : 'Combat Achievement tier could not be fetched (no RuneProfile data), so it\u2019s excluded from the check below \u2014 confirm manually. ';
-      ranksNote.innerHTML = 'Highlighted cells are requirements ' + stats.displayName + ' currently meets. ' +
-        'The gold row is the highest rank fully met on Total Level, Combat, EHP, EHB, Raid KC, Collection Log' +
-        (stats.cas ? ', and CA tier. ' : '. ') + caLine +
-        'Event attendance and gp splits (italic columns) aren\'t available from either API, so confirm those manually.';
-    } else {
-      ranksNote.textContent = 'No rank\u2019s checkable requirements are fully met yet.';
+    if (!rankSelect.dataset.populated) {
+      const autoOpt = document.createElement('option');
+      autoOpt.value = 'auto';
+      autoOpt.textContent = 'Best guess (auto)';
+      rankSelect.appendChild(autoOpt);
+      RANKS.forEach((r, i) => {
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        opt.textContent = r.name;
+        rankSelect.appendChild(opt);
+      });
+      rankSelect.dataset.populated = 'true';
+      rankSelect.addEventListener('change', () => {
+        overrideIndex = rankSelect.value === 'auto' ? null : Number(rankSelect.value);
+        refreshActive();
+      });
     }
-
-    renderMobileCard(stats, qualifyingIndex);
+    rankSelect.value = 'auto';
 
     ranksPanel.classList.add('visible');
     frame.classList.add('wide');
+    refreshActive();
+  }
+
+  function refreshActive() {
+    if (!lastStats) return;
+    const qualifyingIndex = computeQualifyingIndex(lastStats);
+    const activeIndex = overrideIndex !== null ? overrideIndex : qualifyingIndex;
+    const isOverridden = overrideIndex !== null;
+
+    Array.from(ranksBody.children).forEach((tr, i) => {
+      tr.classList.toggle('qualifying', i === activeIndex);
+      tr.classList.toggle('user-selected', isOverridden && i === activeIndex);
+    });
+
+    rankSelect.value = isOverridden ? String(activeIndex) : 'auto';
+
+    if (isOverridden) {
+      ranksNote.innerHTML = 'Showing <strong>' + RANKS[activeIndex].name + '</strong> (selected manually) \u2014 ' +
+        'use the dropdown above, or click a different row, to change it. ' +
+        'Only ' + REQUIRED_TO_ADVANCE + ' of a rank\u2019s requirements are needed to hold it, not all of them.';
+    } else if (activeIndex >= 0) {
+      ranksNote.innerHTML = 'Best guess: <strong>' + RANKS[activeIndex].name + '</strong> \u2014 meeting at least ' +
+        REQUIRED_TO_ADVANCE + ' of a rank\u2019s requirements is enough to hold it, not all of them. ' +
+        'This guess only counts what\u2019s checkable here (levels, EHP/EHB, Raid KC, Collection Log, CA tier); ' +
+        'it can\u2019t see Events attended or gp Splits, so you may genuinely qualify for a higher rank once those count. ' +
+        '<strong>Click any rank below</strong> (or use the dropdown above on mobile) to see exactly what it needs and what you\u2019re missing.';
+    } else {
+      ranksNote.innerHTML = 'None of the checkable requirements are fully met yet. ' +
+        '<strong>Click any rank below</strong> to see exactly what it needs.';
+    }
+
+    renderDetailCard(lastStats, activeIndex);
   }
 
   const COL_LABELS = {
@@ -565,19 +709,25 @@
     ehb: 'EHB',
     raidKc: 'Raid KC',
     collectionLog: 'Collection Log',
+    cas: 'CA Tier',
+    events: 'Events',
+    splits: 'Splits',
   };
 
-  function formatActual(col, val) {
+  function formatActual(col, stats) {
+    if (col === 'cas') return stats.cas || '\u2014';
+    if (col === 'events' || col === 'splits') return '?';
+    const val = stats[col];
     if (col === 'ehp' || col === 'ehb') return val.toFixed(1);
     return val.toLocaleString();
   }
 
-  function formatReq(col, val) {
-    if (col === 'ehp' || col === 'ehb') return val;
-    return val.toLocaleString();
+  function formatReq(col, req) {
+    if (typeof req === 'number') return req.toLocaleString();
+    return req;
   }
 
-  function buildReqRow(label, actualText, reqText, state) {
+  function buildReqRow(label, actualText, reqText, state, hint) {
     const row = document.createElement('div');
     row.className = 'mobile-req-row ' + state;
 
@@ -588,8 +738,8 @@
 
     const valuesEl = document.createElement('div');
     valuesEl.className = 'mobile-req-values';
-    if (state === 'untracked') {
-      valuesEl.textContent = reqText;
+    if (state === 'unverified') {
+      valuesEl.textContent = (hint || reqText + ' needed \u2014 you\u2019ll know this one');
     } else {
       valuesEl.innerHTML = '<span class="actual">' + actualText + '</span>' +
         '<span class="sep">/</span><span class="req">' + reqText + '</span>';
@@ -599,18 +749,31 @@
     return row;
   }
 
-  function renderMobileCard(stats, qualifyingIndex) {
+  function renderBreakdownInto(container, stats, rank) {
+    getRankBreakdown(stats, rank).forEach(({ col, req, state }) => {
+      const hint = (col === 'events' || col === 'splits')
+        ? req + ' needed \u2014 not visible here, check manually'
+        : col === 'cas'
+          ? req + ' needed \u2014 no RuneProfile data found'
+          : undefined;
+      container.appendChild(
+        buildReqRow(COL_LABELS[col], formatActual(col, stats), formatReq(col, req), state, hint)
+      );
+    });
+  }
+
+  function renderDetailCard(stats, activeIndex) {
     ranksMobile.innerHTML = '';
 
-    if (qualifyingIndex < 0) {
+    if (activeIndex < 0) {
       const p = document.createElement('p');
       p.className = 'mobile-rank-sub';
-      p.textContent = 'No rank\u2019s checkable requirements are fully met yet.';
+      p.textContent = 'None of the checkable requirements are fully met yet.';
       ranksMobile.appendChild(p);
       return;
     }
 
-    const rank = RANKS[qualifyingIndex];
+    const rank = RANKS[activeIndex];
 
     const titleWrap = document.createElement('div');
     titleWrap.className = 'mobile-rank-title';
@@ -619,63 +782,19 @@
 
     const sub = document.createElement('p');
     sub.className = 'mobile-rank-sub';
-    sub.textContent = 'Highest rank ' + stats.displayName + ' currently qualifies for';
+    sub.textContent = 'Needs ' + Math.min(REQUIRED_TO_ADVANCE, getRankBreakdown(stats, rank).length) +
+      ' of the requirements below met';
     ranksMobile.appendChild(sub);
 
-    NUMERIC_COLS.forEach(col => {
-      const req = rank[col];
-      if (req === null || req === undefined) return; // no requirement at this rank, skip
-      const met = meetsNumeric(stats[col], req);
-      ranksMobile.appendChild(
-        buildReqRow(COL_LABELS[col], formatActual(col, stats[col]), formatReq(col, req), met ? 'met' : 'unmet')
-      );
-    });
+    renderBreakdownInto(ranksMobile, stats, rank);
 
-    if (rank.cas !== null && rank.cas !== undefined) {
-      if (stats.cas) {
-        const met = meetsTier(stats.cas, rank.cas);
-        ranksMobile.appendChild(buildReqRow('CA Tier', stats.cas, rank.cas, met ? 'met' : 'unmet'));
-      } else {
-        ranksMobile.appendChild(buildReqRow('CA Tier', '', rank.cas + ' (unverified)', 'untracked'));
-      }
-    }
-
-    if (rank.events !== null && rank.events !== undefined) {
-      ranksMobile.appendChild(buildReqRow('Events', '', rank.events + ' (verify manually)', 'untracked'));
-    }
-    if (rank.splits !== null && rank.splits !== undefined) {
-      ranksMobile.appendChild(buildReqRow('Splits', '', rank.splits + ' (verify manually)', 'untracked'));
-    }
-
-    // Show what's needed for the next rank up, if any.
-    if (qualifyingIndex < RANKS.length - 1) {
-      const next = RANKS[qualifyingIndex + 1];
+    if (activeIndex < RANKS.length - 1) {
+      const next = RANKS[activeIndex + 1];
       const heading = document.createElement('div');
       heading.className = 'mobile-next-heading';
-      heading.textContent = 'Still needed for ' + next.name;
+      heading.textContent = 'Next: ' + next.name;
       ranksMobile.appendChild(heading);
-
-      let anyGap = false;
-      NUMERIC_COLS.forEach(col => {
-        const req = next[col];
-        if (req === null || req === undefined) return;
-        if (!meetsNumeric(stats[col], req)) {
-          anyGap = true;
-          ranksMobile.appendChild(
-            buildReqRow(COL_LABELS[col], formatActual(col, stats[col]), formatReq(col, req), 'unmet')
-          );
-        }
-      });
-      if (next.cas !== null && next.cas !== undefined && stats.cas && !meetsTier(stats.cas, next.cas)) {
-        anyGap = true;
-        ranksMobile.appendChild(buildReqRow('CA Tier', stats.cas, next.cas, 'unmet'));
-      }
-      if (!anyGap) {
-        const p = document.createElement('p');
-        p.className = 'mobile-rank-sub';
-        p.textContent = 'All checkable stats already met \u2014 remaining requirements (CA/Events/Splits) need manual confirmation.';
-        ranksMobile.appendChild(p);
-      }
+      renderBreakdownInto(ranksMobile, stats, next);
     }
   }
 
